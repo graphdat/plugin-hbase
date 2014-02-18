@@ -1,0 +1,71 @@
+{
+  "description" : "Displays important HBase metrics",
+  "icon" : "icon.png",
+  "command" : "node index.js",
+  "postExtract" : "npm install",
+  "ignore" : "node_modules",
+
+  "metrics" : [
+    "HBASE_BLOCK_CACHE_EXPRESS",
+    "HBASE_COMPACTION_QUEUE",
+    "HBASE_FLUSH_QUEUE",
+    "HBASE_LOCAL_BLOCK_RATIO",
+    "HBASE_MEMSTORE_SIZE",
+    "HBASE_REGIONS",
+    "HBASE_READ_REQUESTS",
+    "HBASE_SLOW_LOG_APPENDS",
+    "HBASE_MEMORY",
+    "HBASE_WRITE_REQUESTS"
+  ],
+
+  "paramSchema" : [
+    {
+      "title" : "Hostname",
+      "name" : "hostname",
+      "description" : "The hostname or IP address of the JMX server",
+      "type" : "string",
+      "default" : "localhost",
+      "required" : true
+    },
+    {
+      "title" : "Port",
+      "name" : "port",
+      "description" : "The port of the JMX server",
+      "type" : "string",
+      "default" : "10102",
+      "required" : true
+    },
+    {
+      "title" : "HBase 0.95+",
+      "name" : "version_095_orAbove",
+      "description" : "Is the verion of HBase you are using 0.95 or above",
+      "type" : "boolean",
+      "default" : "false"
+    },
+    {
+      "title" : "Username",
+      "name" : "username",
+      "description" : "If the JMX endpoint is password protected, what username should graphdat use when calling it.",
+      "type" : "string"
+    },
+    {
+      "title" : "Password",
+      "name" : "password",
+      "description" : "If the JMX endpoint is password protected, what password should graphdat use when calling it.",
+      "type" : "password"
+    },
+    {
+      "title": "Poll Seconds",
+      "name": "pollSeconds",
+      "description": "How often should the plugin poll the JMX endpoint",
+      "type" : "string",
+      "default" : 5
+    },
+    {
+      "title" : "Source",
+      "name" : "source",
+      "description" : "The Source to display in the legend for the HBase data.  It will default to the hostname of the server",
+      "type" : "string"
+    }
+  ]
+}

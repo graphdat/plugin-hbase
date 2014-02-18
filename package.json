@@ -1,0 +1,30 @@
+{
+  "name": "plugin-hbase",
+  "version": "0.0.1",
+  "description": "git",
+  "main": "index.js",
+  "readmeFilename": "README.md",
+  "dependencies": {
+    "async": "0.2.10",
+    "graphdat-plugin-tools" : "0.0.1",
+    "jmx" : "0.2.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/graphdat/plugin-hbase.git"
+  },
+  "keywords": [
+    "graphdat",
+    "plugin",
+    "hbase"
+  ],
+  "author": "Graphdat <support@graphdat.com>",
+  "license": [ {
+    "type": "Apache 2.0",
+    "url" : "http://www.apache.org/licenses/LICENSE-2.0.html"
+  }],
+  "bugs": {
+    "url": "https://github.com/graphdat/plugin-hbase/issues"
+  },
+  "engine": "node >= 0.8.1"
+}
