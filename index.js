@@ -132,14 +132,16 @@ function generate(cb) {
 
             switch(attribute.type) {
               case 'int':
+                result.value = parseInt(data,10);
+                break;
               case 'sum':
-                result.value = data;
+                result.value = parseFloat(data.longValue,10);
                 break;
               case 'MB':
                 if ('subtype' in attribute)
-                  result.value = data.getSync(attribute.subtype).longValue;
+                  result.value = parseFloat(data.getSync(attribute.subtype).longValue, 10);
                 else
-                  result.value = data * 1024 * 1024;
+                  result.value = parseInt(data) * 1024 * 1024;
                 break;
             }
           }
@@ -195,7 +197,7 @@ function poll(cb) {
         case 'sum':
           var prev = _previous.filter(function(p) { return p.graphdatKey === metric.graphdatKey; });
           if (prev && prev.length === 1)
-            value = diff(metric.value, prev.value);
+            value = diff(metric.value, prev[0].value);
           break;
         default:
           value = metric.value;
