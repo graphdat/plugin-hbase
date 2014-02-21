@@ -1,5 +1,5 @@
 process.on('uncaughtException', function(err) {
-  console.log('msg %s, name %s, stack->\n%s', err.message, err.name, err.stack);
+  console.error('msg %s, name %s, stack->\n%s', err.message, err.name, err.stack);
 });
 
 var _async = require('async');
@@ -11,9 +11,10 @@ var _param = require('./param.json');
 var _tools = require('graphdat-plugin-tools');
 
 var DEBUG = false;
+
 var HBASE_VERSION_WHERE_JMX_KEYS_CHANGED = 95;
 var MAX_RETRY_CONNECTIONS = 10;
-var RECONNECT_INTERVAL = 30000;
+var RECONNECT_INTERVAL = 30000; // If HBase is restarted, it takes about 30s for custom metrics to be available
 var RETRY_CONNECTION_INTERVAL = 5000;
 
 var JMX_ATTRIBUTES = {
@@ -34,13 +35,14 @@ var JMX_ATTRIBUTES = {
 };
 
 var _functionsToPoll; // functions to fetch the metrics
-var _pollHandler; // the handler for the poll
-var _pollInterval; // the interval to poll the metrics
+var _pollInterval; // the time interval to poll the metrics
+var _pollTimeout; // the handler for the poll
 var _previous; // the previous process count
 var _source; // the source of the metrics
 
 var _client;
 var _connectionAttempt = 0;
+var _isApplicationClosing = false;
 var _isConnected = false;
 var _isReconnect = false;
 var _reconnectAt;
@@ -173,7 +175,7 @@ function poll(cb) {
       console.error('error in poll()');
       console.error(err);
       _previous = undefined;
-      _pollHandler = setTimeout(poll, _pollInterval);
+      _pollTimeout = setTimeout(poll, _pollInterval);
       return;
     }
 
@@ -181,7 +183,7 @@ function poll(cb) {
       // skip the first value otherwise it would be 0
       if (DEBUG) console.log('skipping first record in poll');
       _previous = current;
-      _pollHandler = setTimeout(poll, _pollInterval);
+      _pollTimeout = setTimeout(poll, _pollInterval);
       return;
     }
 
@@ -204,7 +206,7 @@ function poll(cb) {
     });
 
     _previous = current;
-    _pollHandler = setTimeout(poll, _pollInterval);
+    _pollTimeout = setTimeout(poll, _pollInterval);
   });
 }
 
@@ -277,11 +279,8 @@ function disconnect() {
   }
 
   if (DEBUG) console.log('disconnect()');
-  if (_client && _isConnected)
+  if (_client)
     _client.disconnect();
-
-  // set it here in case there is an error in disconnecting
-  _isConnected = false;
 }
 
 _client.on("error", function(err) {
@@ -291,9 +290,9 @@ _client.on("error", function(err) {
   // If the connection was refused, re-try
   if (err && err.message && err.message.match(/Connection refused to host/)) {
     _isConnected = false;
-    if (_pollHandler) {
-      clearTimeout(_pollHandler);
-      _pollHandler = null;
+    if (_pollTimeout) {
+      clearTimeout(_pollTimeout);
+      _pollTimeout = null;
     }
     reconnect();
   }
@@ -317,13 +316,13 @@ _client.on("connect", function() {
     clearTimeout(_reconnectTimeout);
     _reconnectTimeout = null;
   }
-  if (_pollHandler) {
-    clearTimeout(_pollHandler);
-    _pollHandler = null;
+  if (_pollTimeout) {
+    clearTimeout(_pollTimeout);
+    _pollTimeout = null;
   }
 
   // start the polling for our metrics
-  _pollHandler = setTimeout(poll, (isReconnect) ? RECONNECT_INTERVAL : _pollInterval);
+  _pollTimeout = setTimeout(poll, (isReconnect) ? RECONNECT_INTERVAL : _pollInterval);
 });
 
 _client.on('disconnect', function() {
@@ -331,13 +330,33 @@ _client.on('disconnect', function() {
   if (DEBUG) console.log('on client.disconnect');
 
   _isConnected = false;
-  if (_pollHandler) {
-    clearTimeout(_pollHandler);
-    _pollHandler = null;
+  if (_pollTimeout) {
+    clearTimeout(_pollTimeout);
+    _pollTimeout = null;
   }
-
-  reconnect();
+  if (!_isApplicationClosing)
+    reconnect();
 });
+
+process.on('SIGINT', closeAndExit);
+process.on('SIGKILL', closeAndExit);
+process.on('SIGTERM', closeAndExit);
+function closeAndExit()
+{
+  _isApplicationClosing = true;
+  disconnect();
+  if (_pollTimeout)
+  {
+    clearTimeout(_pollTimeout);
+    _pollTimeout = null;
+  }
+  if (_reconnectTimeout)
+  {
+     clearTimeout(_reconnectTimeout);
+    _reconnectTimeout = null;
+  }
+  process.exit(0);
+}
 
 _async.series([
     // function(cb) { checkRegionServer(cb); }, // make sure this is a region server
