@@ -3,14 +3,18 @@ process.on('uncaughtException', function(err) {
 });
 
 var _async = require('async');
+var _exec = require('child_process').exec;
 var _fs = require('fs');
 var _jmx = require('jmx');
 var _os = require('os');
 var _param = require('./param.json');
-var _path = require('path');
 var _tools = require('graphdat-plugin-tools');
 
 var DEBUG = false;
+var HBASE_VERSION_WHERE_JMX_KEYS_CHANGED = 95;
+var MAX_RETRY_CONNECTIONS = 10;
+var RECONNECT_INTERVAL = 30000;
+var RETRY_CONNECTION_INTERVAL = 5000;
 
 var JMX_ATTRIBUTES = {
   "hadoop:service=RegionServer,name=RegionServerStatistics": {
@@ -29,25 +33,22 @@ var JMX_ATTRIBUTES = {
   }
 };
 
+var _functionsToPoll; // functions to fetch the metrics
 var _pollHandler; // the handler for the poll
 var _pollInterval; // the interval to poll the metrics
 var _previous; // the previous process count
-var _previous_ts; // the previous time the metric was counted
 var _source; // the source of the metrics
+
+var _client;
+var _connectionAttempt = 0;
+var _isConnected = false;
+var _isReconnect = false;
+var _reconnectAt;
+var _reconnectTimeout;
 
 // ==========
 // VALIDATION
 // ==========
-
-// change some keys based on HBASE versions
-var _newVersion = 'version_095_orAbove' in _param ? _param.version_095_orAbove : true;
-if (!_newVersion) {
-  var regionServers = JMX_ATTRIBUTES["hadoop:service=RegionServer,name=RegionServerStatistics"];
-  regionServers.blockCacheHitCachingRatio = regionServers.blockCacheExpressCachingRatio;
-  delete regionServers.blockCacheExpressCachingRatio;
-  regionServers.compactionQueueSize = regionServers.compactionQueueLength;
-  delete regionServers.compactionQueueLength;
-}
 
 // where is the JMX endpoint
 var _hostname = _param.hostname || 'localhost';
@@ -57,82 +58,98 @@ var _username = _param.username;
 var _password = _param.password;
 
 // how often should we poll
-var _pollInterval = (_param.pollSeconds && parseFloat(_param.pollSeconds) * 1000) ||
-                    (_param.pollInterval) ||
-                    5000;
+_pollInterval = (_param.pollSeconds && parseFloat(_param.pollSeconds) * 1000) ||
+                (_param.pollInterval) ||
+                5000;
 
 // set the source if we do not have one
-var _source = (_param.source && _param.source.trim() !== '') ? _param.source : _os.hostname();
+_source = (_param.source && _param.source.trim() !== '') ? _param.source : _os.hostname();
 
-// ===============
-// LET GET STARTED
-// ===============
 
-// create the JMX client to poll with
-var config = {
-  host: _hostname,
-  port: _port,
-  protocol: _protocol
-};
+// Is the the plugin being run on a server with the region service
+function checkRegionServer(cb) {
+  _exec('ps aux | grep HRegionServer | grep -v grep', function (err, stdout, stderr) {
+    if (err || stderr || !stdout)
+      return cb('The Graphdat HBase plugin should be run on a Region Server');
+    else
+      return cb(null);
+  });
+}
 
-if (_username)
-  config.username = _username;
-if (_password)
-  config.password = _password;
+// Is the the plugin being run on a server with the region service
+function checkHBaseVersion(cb) {
+  var errmsg = 'Cannot detect the HBase version';
+  _exec('hbase version', function (err, stdout, stderr) {
+    if (err)
+      return cb(errmsg);
 
-var _client = _jmx.createClient(config);
-_client.on("error", function(err) {
-  console.error(err);
-  process.exit(1);
-});
-_client.on("connect", function() {
-  if (DEBUG)
-    console.log('connected!');
-  if (_pollHandler)
-    clearTimeout(_pollHandler);
+    var lines = (stderr || stdout).split('\n');
+    if (!lines || lines.length === 0)
+      return cb(errmsg);
 
-  // start the polling for our metrics
-  poll();
-});
+    var match = lines[0].match(/HBase \w+.(\w+).\w+/);
+    if (!match)
+      return cb(errmsg);
+
+    var version = parseInt(match[1], 10);
+    if (isNaN(version))
+      return cb(errmsg);
+
+    if (version < HBASE_VERSION_WHERE_JMX_KEYS_CHANGED) {
+      var regionServers = JMX_ATTRIBUTES["hadoop:service=RegionServer,name=RegionServerStatistics"];
+
+      // blockCacheExpressCachingRatio used to be called blockCacheHitCachingRatio
+      regionServers.blockCacheHitCachingRatio = regionServers.blockCacheExpressCachingRatio;
+      delete regionServers.blockCacheExpressCachingRatio;
+
+      // compactionQueueLength used to be called compactionQueueSize
+      regionServers.compactionQueueSize = regionServers.compactionQueueLength;
+      delete regionServers.compactionQueueLength;
+    }
+
+    return cb(null);
+  });
+}
 
 // create the polling functions
-var funcs = [];
-Object.keys(JMX_ATTRIBUTES).forEach(function(key) {
-  Object.keys(JMX_ATTRIBUTES[key]).forEach(function(name) {
-    funcs.push(function(cb) {
+function generate(cb) {
+  _functionsToPoll = [];
+  Object.keys(JMX_ATTRIBUTES).forEach(function(key) {
+    Object.keys(JMX_ATTRIBUTES[key]).forEach(function(name) {
+      _functionsToPoll.push(function(inner_cb) {
 
-      if (DEBUG)
-        console.log('attempting to get %s from %s', name, key);
+        if (DEBUG) console.log('attempting to get %s from %s', name, key);
 
-      _client.getAttribute(key, name, function(data) {
+        _client.getAttribute(key, name, function(data) {
 
-        var attribute = JMX_ATTRIBUTES[key][name];
-        var result;
-        if (DEBUG)
-          console.log(data.toString());
+          var attribute = JMX_ATTRIBUTES[key][name];
+          var result;
 
-        if (data !== undefined) {
-          result = { key: key, name:name, type:attribute.type, graphdatKey:attribute.graphdatKey };
+          if (data !== undefined) {
+            result = { key: key, name:name, type:attribute.type, graphdatKey:attribute.graphdatKey };
 
-          switch(attribute.type) {
-            case 'int':
-            case 'sum':
-              result.value = data;
-              break;
-            case 'MB':
-              if ('subtype' in attribute)
-                result.value = data.getSync(attribute.subtype).longValue;
-              else
-                result.value = data * 1024 * 1024;
-              break;
+            switch(attribute.type) {
+              case 'int':
+              case 'sum':
+                result.value = data;
+                break;
+              case 'MB':
+                if ('subtype' in attribute)
+                  result.value = data.getSync(attribute.subtype).longValue;
+                else
+                  result.value = data * 1024 * 1024;
+                break;
+            }
           }
-        }
-        return cb(null, result);
+          return inner_cb && inner_cb(null, result);
+        });
       });
     });
   });
-});
+  return cb(null);
+}
 
+// helper to diff two numbers
 function diff(a, b) {
   if (a == null || b == null || isNaN(a) || isNaN(b))
     return undefined;
@@ -145,35 +162,32 @@ function diff(a, b) {
 // get the stats, format the output and send to stdout
 function poll(cb) {
 
-  var ts = Date.now();
-  var ts_delta= diff(ts, _previous_ts);
+  _async.series(_functionsToPoll, function(err, current) {
 
-  _async.parallel(funcs, function(err, current) {
-
-    if (DEBUG)
+    if (DEBUG) {
+      console.log('poll() - current');
       console.log(current);
+    }
 
-    if (err || current === undefined) {
-      _previous = undefined;
-      _previous_ts = undefined;
+    if (err || current == null) {
+      console.error('error in poll()');
       console.error(err);
+      _previous = undefined;
       _pollHandler = setTimeout(poll, _pollInterval);
       return;
     }
 
     if (_previous === undefined) {
       // skip the first value otherwise it would be 0
+      if (DEBUG) console.log('skipping first record in poll');
       _previous = current;
-      _previous_ts = ts;
       _pollHandler = setTimeout(poll, _pollInterval);
       return;
     }
 
+    // things are good, lets process the values
+    if (DEBUG) console.log('poll() has values');
     current.forEach(function(metric) {
-
-      if (DEBUG)
-        console.log(metric);
-
       var value;
       switch(metric.type) {
         case 'sum':
@@ -190,12 +204,152 @@ function poll(cb) {
     });
 
     _previous = current;
-    _previous_ts = ts;
     _pollHandler = setTimeout(poll, _pollInterval);
   });
 }
 
-if (DEBUG)
-  console.log('attempting connection');
+// ===============
+// LET GET STARTED
+// ===============
 
-_client.connect();
+// create the JMX client to poll with
+_client = _jmx.createClient({
+  host: _hostname,
+  port: _port,
+  protocol: _protocol,
+  username: _username,
+  password: _password
+});
+
+function connect() {
+
+  if (_isConnected === true) {
+    if (DEBUG) console.log('skipping connect(), we are already connected');
+    return;
+  }
+
+  if (_reconnectTimeout) {
+    clearTimeout(_reconnectTimeout);
+    _reconnectTimeout = null;
+  }
+
+  if (DEBUG) console.log('Attempting connection');
+  _connectionAttempt++;
+  _client.connect();
+}
+
+function reconnect() {
+
+  if (_isConnected === true) {
+    if (DEBUG) console.log('skipping reconnect(), we are already connected');
+    return;
+  }
+  if (_connectionAttempt > MAX_RETRY_CONNECTIONS) {
+    if (DEBUG) console.log('exceeded the number of attempts');
+    return;
+  }
+
+  var interval = (RETRY_CONNECTION_INTERVAL * _connectionAttempt) + RETRY_CONNECTION_INTERVAL;
+  var now = Date.now();
+  var reconnectTime = now + interval;
+
+  if (!_reconnectAt ||  // have not scheduled a reconnection
+      _reconnectAt < now ||  // the reconnection is in the past
+      reconnectTime < _reconnectAt) { // the reconnection is sooner as we have another error
+
+    console.log('Will attempt to reconnect to in ' + interval/1000 + ' secs');
+
+    _isReconnect = true;
+    _reconnectAt = reconnectTime;
+    clearTimeout(_reconnectTimeout);
+    _reconnectTimeout = setTimeout(connect, interval);
+  }
+  else {
+    if (DEBUG) console.log('ignoring reconnect()');
+  }
+}
+
+function disconnect() {
+
+  if (!_isConnected) {
+    if (DEBUG) console.log('skipping disconnect(), we are not connected');
+    return;
+  }
+
+  if (DEBUG) console.log('disconnect()');
+  if (_client && _isConnected)
+    _client.disconnect();
+
+  // set it here in case there is an error in disconnecting
+  _isConnected = false;
+}
+
+_client.on("error", function(err) {
+
+  if (DEBUG) console.log('on client.error');
+
+  // If the connection was refused, re-try
+  if (err && err.message && err.message.match(/Connection refused to host/)) {
+    _isConnected = false;
+    if (_pollHandler) {
+      clearTimeout(_pollHandler);
+      _pollHandler = null;
+    }
+    reconnect();
+  }
+  else {
+    console.error(err);
+    process.exit(1);
+  }
+});
+
+_client.on("connect", function() {
+
+  if (DEBUG) console.log('on client.connect');
+  var isReconnect = _isReconnect;
+
+  _connectionAttempt = 0;
+  _isConnected = true;
+  _isReconnect = false;
+  _reconnectAt = undefined;
+
+  if (_reconnectTimeout) {
+    clearTimeout(_reconnectTimeout);
+    _reconnectTimeout = null;
+  }
+  if (_pollHandler) {
+    clearTimeout(_pollHandler);
+    _pollHandler = null;
+  }
+
+  // start the polling for our metrics
+  _pollHandler = setTimeout(poll, (isReconnect) ? RECONNECT_INTERVAL : _pollInterval);
+});
+
+_client.on('disconnect', function() {
+
+  if (DEBUG) console.log('on client.disconnect');
+
+  _isConnected = false;
+  if (_pollHandler) {
+    clearTimeout(_pollHandler);
+    _pollHandler = null;
+  }
+
+  reconnect();
+});
+
+_async.series([
+    // function(cb) { checkRegionServer(cb); }, // make sure this is a region server
+    function(cb) { checkHBaseVersion(cb); }, // different HBase version use different keys
+    function(cb) { generate(cb); } // now we have the keys, generate the polling functions
+  ],
+  function(err, results) {
+    if (err) {
+      console.error('startup');
+      console.error(err);
+      process.exit(1);
+    }
+    connect();
+  }
+);
