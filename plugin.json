@@ -18,6 +18,13 @@
     "HBASE_WRITE_REQUESTS"
   ],
 
+  "dashboards" : [
+    {
+      "name" : "hbase",
+      "layout" : "d-w=4&d-h=3&d-pad=5&d-bg=none&d-g-HBASE_LOCAL_BLOCK_RATIO=0-2-1-1&d-sg-cpu=0-0-2-1&d-g-HBASE_MEMORY=2-0-2-1&d-g-HBASE_BLOCK_CACHE_EXPRESS=0-1-1-1&d-g-HBASE_WRITE_REQUESTS=3-1-1-1&d-g-HBASE_READ_REQUESTS=2-1-1-1&d-g-HBASE_REGIONS=1-1-1-1&d-g-HBASE_FLUSH_QUEUE=1-2-1-1&d-g-HBASE_MEMSTORE_SIZE=2-2-1-1&d-g-HBASE_SLOW_LOG_APPENDS=3-2-1-1"
+    }
+  ],
+
   "paramSchema" : [
     {
       "title" : "Hostname",
