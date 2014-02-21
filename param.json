@@ -1,0 +1,6 @@
+{
+  "pollInterval": 5000,
+  "hostname": "localhost",
+  "port": 10102,
+  "protocol": "rmi",
+}
