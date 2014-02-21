@@ -22,7 +22,7 @@
     {
       "title" : "Hostname",
       "name" : "hostname",
-      "description" : "The hostname or IP address of the JMX server",
+      "description" : "The hostname or IP address of the JMX Region server",
       "type" : "string",
       "default" : "localhost",
       "required" : true
@@ -30,17 +30,10 @@
     {
       "title" : "Port",
       "name" : "port",
-      "description" : "The port of the JMX server",
+      "description" : "The port of the JMX Region server",
       "type" : "string",
       "default" : "10102",
       "required" : true
-    },
-    {
-      "title" : "HBase 0.95+",
-      "name" : "version_095_orAbove",
-      "description" : "Is the verion of HBase you are using 0.95 or above",
-      "type" : "boolean",
-      "default" : "false"
     },
     {
       "title" : "Username",
