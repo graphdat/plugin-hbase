@@ -19,10 +19,10 @@ var RETRY_CONNECTION_INTERVAL = 5000;
 
 var JMX_ATTRIBUTES = {
   "hadoop:service=RegionServer,name=RegionServerStatistics": {
-    blockCacheExpressCachingRatio: { type:'int', graphdatKey: 'HBASE_BLOCK_CACHE_EXPRESS' },
+    blockCacheExpressCachingRatio: { type:'percentage', graphdatKey: 'HBASE_BLOCK_CACHE_EXPRESS' },
     compactionQueueLength: { type:'int', graphdatKey: 'HBASE_COMPACTION_QUEUE' },
     flushQueueSize: { type:'int', graphdatKey: 'HBASE_FLUSH_QUEUE' },
-    hdfsBlocksLocalityIndex: { type:'int', graphdatKey: 'HBASE_LOCAL_BLOCK_RATIO' },
+    hdfsBlocksLocalityIndex: { type:'percentage', graphdatKey: 'HBASE_LOCAL_BLOCK_RATIO' },
     memstoreSizeMB: { type:'MB', graphdatKey: 'HBASE_MEMSTORE_SIZE' },
     regions: { type:'int', graphdatKey: 'HBASE_REGIONS' },
     readRequestsCount: { type:'sum', graphdatKey: 'HBASE_READ_REQUESTS' },
@@ -133,6 +133,9 @@ function generate(cb) {
             switch(attribute.type) {
               case 'int':
                 result.value = parseInt(data,10);
+                break;
+              case 'percentage':
+                result.value = parseInt(data,10) / 100;
                 break;
               case 'sum':
                 result.value = parseFloat(data.longValue,10);
