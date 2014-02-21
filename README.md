@@ -1,4 +1,4 @@
-# Graphdat HBase Plugin
+# Graphdat HBase Plugin for Region Servers
 
 ### Pre Reqs
 
@@ -8,11 +8,10 @@
 
 ### Installation & Configuration
 
-* The `Hostname` tells Graphdat which hostname or IP Address to use when calling the JMX endpoint
-* The `Port` tells Graphdat which port to use when calling the JMX endpoint
-* The `HBase 0.95+` tells Graphdat which version of HBase you are running as they changed the key names of some metrics
-* The `Username` is the username required to call the JMX endpoint.
-* The `Password` is the password required to call the JMX endpoint.
+* The `Hostname` tells Graphdat which hostname or IP Address to use when calling the JMX endpoint (localhost)
+* The `Port` tells Graphdat which port to use when calling the JMX endpoint (10102)
+* The `Username` is the username required to call the JMX endpoint. (monitorRole)
+* The `Password` is the password required to call the JMX endpoint. (monitorpass)
 * The `Source` is the displayed in the legend.  It will default to the hostname of the server
 * The `Poll Seconds` is the number of seconds to wait before polling. It will default to 5 seconds.
 
