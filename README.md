@@ -1,29 +1,59 @@
-# Graphdat HBase Plugin for Region Servers
+Boundary HBase Region Server Plugin
+-----------------------------------
+Collects metrics from a HBase Region Server.
 
-### Pre Reqs
+### Platforms
+- Windows
+- Linux
+- OS X
+- SmartOS
 
-1. Enable JMX metrics in HBase - Follow the guide [here](https://hbase.apache.org/metrics.html) to enable JMX collection of your HBase metrics
-2. Make sure you have set you JAVA_HOME environment variable - Run `echo $JAVA_HOME` to verify the variable has been set
+### Prerequisites
+- node version 0.8.0 or later
+- Java Runtime Environment (JRE) 1.6 or later
+- JMX Metrics are enabled (see Plugin Setup below)
+
+### Plugin Setup
+
+#### Enable JMX Metrics
+
+1. Enable JMX metrics in HBase by following this guide [here](https://hbase.apache.org/metrics.html).
+
+#### Set `JAVA_HOME` Environment Variable
+1. Ensure the that the `JAVA_HOME` environment variable is by running the following on a Linux/UNIX platform:
+     ```bash
+     $ echo $JAVA_HOME`
+     ```
+Or on Windows from a cmd shell:
+     ```bash
+     % set JAVA_HOME
+     ```
+2. If `JAVA_HOME` is not set then configure appropriately for the target operating system and re-verify.
+
+### Plugin Configuration Fields
+|Field Name  |Description                                                                                           |
+|:-----------|:-----------------------------------------------------------------------------------------------------|
+|Hostname    |The hostname or IP address of the JMX Region server                                                   |
+|Port        |The port of the JMX Region server                                                                     |
+|Username    |If the JMX endpoint is password protected, what username should graphdat use when calling it.         |
+|Password    |If the JMX endpoint is password protected, what password should graphdat use when calling it.         |
+|Poll Seconds|How often should the plugin poll the JMX endpoint                                                     |
+|Source      |The Source to display in the legend for the HBase data.  It will default to the hostname of the server|
+
+### Metrics Collected
+|Metric Name                     |Description                                                                              |
+|:-------------------------------|:----------------------------------------------------------------------------------------|
+|HBase Cache Read Ratio          |The cache-hit ratio for reads configured to look in the cache                            |
+|HBase Compaction Targets        |The number of Stores in the Region Server that have been targeted for compaction         |
+|HBase Flush Queue               |The number of enqueued regions in the MemStore awaiting flush                            |
+|HBase Local Block Ratio         |The percentage of HDFS blocks that are local to this Region Server                       |
+|HBase Memstore Size             |The sum of all the memstore sizes in this Region Server                                  |
+|HBase Regions in a Region Server|The number of regions served by the Region Server.                                       |
+|HBase Reads                     |The number of read requests for this Region Server.                                      |
+|HBase Slow Writes               |The number of slow HLog append writes for this Region Server, where _slow_ is > 1 second.|
+|HBase Memory                    |The amount of memory used by the RegionServer.                                           |
+|HBase Writes                    |The number of write requests for this Region Server.                                     |
 
 
-### Installation & Configuration
 
-* The `Hostname` tells Graphdat which hostname or IP Address to use when calling the JMX endpoint (localhost)
-* The `Port` tells Graphdat which port to use when calling the JMX endpoint (10102)
-* The `Username` is the username required to call the JMX endpoint. (monitorRole)
-* The `Password` is the password required to call the JMX endpoint. (monitorpass)
-* The `Source` is the displayed in the legend.  It will default to the hostname of the server
-* The `Poll Seconds` is the number of seconds to wait before polling. It will default to 5 seconds.
 
-### Tracks the following metrics from HBase
-
-* HBASE_BLOCK_CACHE_EXPRESS: Block cache hit caching ratio (0 to 100).  The cache-hit ratio for reads configured to look in the cache (i.e., cacheBlocks=true).
-* HBASE_COMPACTION_QUEUE: The length of the compaction queue.  This is the number of Stores in the RegionServer that have been targeted for compaction.
-* HBASE_FLUSH_QUEUE: The number of enqueued regions in the MemStore awaiting flush.
-* HBASE_LOCAL_BLOCK_RATIO: The percentage of HDFS blocks that are local to this RegionServer. The higher the better.
-* HBASE_MEMSTORE_SIZE: The sum of all the memstore sizes in this RegionServer. Watch for this nearing or exceeding the configured high-watermark for MemStore memory in the Region Server.
-* HBASE_REGIONS: The number of regions served by the RegionServer. This is an important metric to track for RegionServer-Region density.
-* HBASE_READ_REQUESTS: The number of read requests for this RegionServer.
-* HBASE_SLOW_LOG_APPENDS: The number of slow HLog append writes for this RegionServer since startup, where "slow" is > 1 second. This is a good "canary" metric for HDFS.
-* HBASE_MEMORY: The amount of memory used by the RegionServer.
-* HBASE_WRITE_REQUESTS: The number of write requests for this RegionServer since startup.
