@@ -2,16 +2,19 @@ Boundary HBase Region Server Plugin
 -----------------------------------
 Collects metrics from a HBase Region Server.
 
-### Platforms
-- Windows
-- Linux
-- OS X
-- SmartOS
-
 ### Prerequisites
-- node version 0.8.0 or later
-- npm version 1.4.21 or later
-- Java Runtime Environment (JRE) 1.6 or later
+
+|     OS    | Linux | Windows | SmartOS | OS X |
+|:----------|:-----:|:-------:|:-------:|:----:|
+| Supported |   v   |    v    |    v    |  v   |
+
+
+|  Runtime | node.js | Python | Java |
+|:---------|:-------:|:------:|:----:|
+| Required |    +    |        |  +   |
+
+- [How to install node.js?](https://help.boundary.com/hc/articles/202360701)
+- [How to install Java?](https://help.boundary.com/hc/articles/202360711)
 - JMX Metrics are enabled (see Plugin Setup below)
 
 ### Plugin Setup
@@ -54,7 +57,3 @@ Or on Windows from a cmd shell:
 |HBase Slow Writes               |The number of slow HLog append writes for this Region Server, where _slow_ is > 1 second.|
 |HBase Memory                    |The amount of memory used by the RegionServer.                                           |
 |HBase Writes                    |The number of write requests for this Region Server.                                     |
-
-
-
-
