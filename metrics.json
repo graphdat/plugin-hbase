@@ -1,0 +1,82 @@
+{
+  "HBASE_BLOCK_CACHE_EXPRESS": {
+    "defaultAggregate": "AVG",
+    "defaultResolutionMS": 1000,
+    "description": "The cache-hit ratio for reads configured to look in the cache",
+    "displayName": "HBase Cache Read Ratio",
+    "displayNameShort": "hbase-cache-reads",
+    "unit": "percent"
+  },
+  "HBASE_COMPACTION_QUEUE": {
+    "defaultAggregate": "AVG",
+    "defaultResolutionMS": 1000,
+    "description": "The number of Stores in the Region Server that have been targeted for compaction",
+    "displayName": "HBase Compaction Targets",
+    "displayNameShort": "hbase-compactions",
+    "unit": "number"
+  },
+  "HBASE_FLUSH_QUEUE": {
+    "defaultAggregate": "AVG",
+    "defaultResolutionMS": 1000,
+    "description": "The number of enqueued regions in the MemStore awaiting flush",
+    "displayName": "HBase Flush Queue",
+    "displayNameShort": "hbase-flush-queue",
+    "unit": "number"
+  },
+  "HBASE_LOCAL_BLOCK_RATIO": {
+    "defaultAggregate": "AVG",
+    "defaultResolutionMS": 1000,
+    "description": "The percentage of HDFS blocks that are local to this Region Server",
+    "displayName": "HBase Local Block Ratio",
+    "displayNameShort": "hbase-local-blocks",
+    "unit": "percent"
+  },
+  "HBASE_MEMORY": {
+    "defaultAggregate": "SUM",
+    "defaultResolutionMS": 1000,
+    "description": "The amount of memory used by the RegionServer.",
+    "displayName": "HBase Memory",
+    "displayNameShort": "hbase-memory",
+    "unit": "bytecount"
+  },
+  "HBASE_MEMSTORE_SIZE": {
+    "defaultAggregate": "SUM",
+    "defaultResolutionMS": 1000,
+    "description": "The sum of all the memstore sizes in this Region Server",
+    "displayName": "HBase Memstore Size",
+    "displayNameShort": "hbase-memstore",
+    "unit": "bytecount"
+  },
+  "HBASE_READ_REQUESTS": {
+    "defaultAggregate": "AVG",
+    "defaultResolutionMS": 1000,
+    "description": "The number of read requests for this Region Server.",
+    "displayName": "HBase Reads",
+    "displayNameShort": "hbase-reads",
+    "unit": "number"
+  },
+  "HBASE_REGIONS": {
+    "defaultAggregate": "AVG",
+    "defaultResolutionMS": 1000,
+    "description": "The number of regions served by the Region Server.",
+    "displayName": "HBase Regions in a Region Server",
+    "displayNameShort": "hbase-regions",
+    "unit": "number"
+  },
+  "HBASE_SLOW_LOG_APPENDS": {
+    "defaultAggregate": "MAX",
+    "defaultResolutionMS": 1000,
+    "description": "The number of slow HLog append writes for this Region Server, where \"slow\" is > 1 second.",
+    "displayName": "HBase Slow Writes",
+    "displayNameShort": "hbase-slow-writes",
+    "unit": "number"
+  },
+  "HBASE_WRITE_REQUESTS": {
+    "defaultAggregate": "AVG",
+    "defaultResolutionMS": 1000,
+    "description": "The number of write requests for this Region Server.",
+    "displayName": "HBase Writes",
+    "displayNameShort": "hbase-writes",
+    "unit": "number"
+  }
+}
